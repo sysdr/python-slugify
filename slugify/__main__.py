@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import errno
+import os
 import sys
 from typing import Any
 
@@ -109,12 +111,32 @@ def main(argv: list[str] | None = None) -> None:
     params = slugify_params(args)
     try:
         if getattr(args, 'lines', False):
-            for line in args.input_string.splitlines():
+            # Split on '\n' only: str.splitlines() would also break on \f, \v,
+            # \x1c-\x1e, \x85,   and   inside a line.
+            lines = args.input_string.split('\n')
+            if lines[-1] == '':
+                lines.pop()
+            for line in lines:
+                if line.endswith('\r'):
+                    line = line[:-1]
                 print(slugify(**dict(params, text=line)))
         else:
             print(slugify(**params))
     except KeyboardInterrupt:
         sys.exit(-1)
+    except OSError as error:
+        # The reader went away (e.g. output piped to `head`). Windows reports a
+        # closed pipe as EINVAL rather than BrokenPipeError.
+        if not (isinstance(error, BrokenPipeError)
+                or (sys.platform == 'win32' and error.errno == errno.EINVAL)):
+            raise
+        # Point stdout at devnull so the interpreter's final flush cannot raise again.
+        try:
+            devnull = os.open(os.devnull, os.O_WRONLY)
+            os.dup2(devnull, sys.stdout.fileno())
+        except (OSError, ValueError):
+            pass
+        sys.exit(1)
 
 
 if __name__ == '__main__':

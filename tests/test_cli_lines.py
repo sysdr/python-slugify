@@ -37,6 +37,27 @@ def test_lines_handles_crlf_and_keeps_blank_lines_aligned(capsys):
     assert out == 'one\n\ntwo-three\n'
 
 
+def test_lines_splits_on_newlines_only(capsys):
+    # str.splitlines() would also split on these; they belong to the line.
+    text = 'a\x0bb\x0cc\x1cd\x85e f g\nlone\rcr\n'
+    out = run_cli(capsys, text, '--stdin', '--lines')
+    assert out.splitlines() == ['a-b-c-de-f-g', 'lone-cr']
+
+
+def test_lines_closed_output_pipe_exits_quietly():
+    # Like `slugify --stdin --lines | head -1`: the reader closes early.
+    proc = subprocess.Popen([sys.executable, '-m', 'slugify', '--stdin', '--lines'],
+                            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc.stdin.write(b'Hello World\n' * 20000)
+    proc.stdin.close()
+    assert proc.stdout.readline().strip() == b'hello-world'
+    proc.stdout.close()
+    err = proc.stderr.read()
+    proc.stderr.close()
+    assert proc.wait(timeout=60) == 1
+    assert err == b''
+
+
 def test_lines_with_empty_stdin_prints_nothing(capsys):
     assert run_cli(capsys, '', '--stdin', '--lines') == ''
 
