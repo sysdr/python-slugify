@@ -149,6 +149,15 @@ slugify --stopwords the in a hurry -- the quick brown fox jumps over the lazy do
 slugify --replacement-stage pre --replacements 'a->aa' -- a
 ```
 
+With `--stdin`, add `--lines` to slugify each input line separately and print one slug per line
+(without `--lines`, all of stdin becomes a single slug, as before):
+
+```sh
+printf 'Hello World\nCafe au lait\n' | slugify --stdin --lines
+# hello-world
+# cafe-au-lait
+```
+
 ## Development and local release checks
 
 ```sh
