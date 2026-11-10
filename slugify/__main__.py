@@ -15,6 +15,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                              help='Text to slugify')
     input_group.add_argument("--stdin", action='store_true',
                              help="Take the text from STDIN")
+    input_group.add_argument("--lines", action='store_true', default=argparse.SUPPRESS,
+                             help="With --stdin, slugify each input line separately and print one slug per line")
 
     parser.add_argument("--no-entities", action='store_false', dest='entities', default=True,
                         help="Do not convert HTML entities to unicode")
@@ -52,6 +54,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
     if args.input_string and args.stdin:
         parser.error("Input strings and --stdin cannot work together")
+
+    if getattr(args, 'lines', False) and not args.stdin:
+        parser.error("--lines requires --stdin")
 
     if args.replacements:
         def split_check(repl: str) -> list[str]:
@@ -103,7 +108,11 @@ def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
     params = slugify_params(args)
     try:
-        print(slugify(**params))
+        if getattr(args, 'lines', False):
+            for line in args.input_string.splitlines():
+                print(slugify(**dict(params, text=line)))
+        else:
+            print(slugify(**params))
     except KeyboardInterrupt:
         sys.exit(-1)
 
